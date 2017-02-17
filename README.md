@@ -1,2 +1,2 @@
 # mri
-MRI data analysis
+functional and structural MRI data analysis
