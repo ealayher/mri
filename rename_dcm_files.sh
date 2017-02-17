@@ -3,12 +3,11 @@
 # Created: 11/07/2015 By: Evan Layher (layher@psych.ucsb.edu)
 # Revised: 03/13/2016 By: Evan Layher (2.0): Updated code for efficiency
 # Revised: 03/16/2016 By: Evan Layher (2.1): Include echo number in filename if > 1 (field maps)
-# Revised: 02/16/2017 By: Evan Layher (2.2): Minor updates
+# Revised: 02/16/2017 By: Evan Layher (2.2): Alert user of progress + minor updates
 #--------------------------------------------------------------------------------------#
 # Rename and organize raw dicom files
 #
 # Requires the executable binary file 'dcmdump' from the DCMTK: http://dcmtk.org/dcmtk.php.en
-# The file 'dcmdump' must be in the folder '/usr/bin': sudo mv dcmdump /usr/bin
 
 ## --- LICENSE INFORMATION --- ##
 ## rename_dcm_files.sh is the proprietary property of The Regents of the University of California ("The Regents.")
@@ -40,7 +39,7 @@
 ## --------------------------- ##
 
 #-------------------------------- VARIABLES --------------------------------#
-scan_dir=('SeriesNumber' 'SeriesDescription' 'StudyDate') # Input dicom headers ('SeriesNumber' begins all directories)
+scan_dir=('SeriesNumber' 'SeriesDescription' 'StudyDate') # Input dicom headers ('SeriesNumber' begins all output folders)
 file_perm='664' # Dicom file permissions
 dir_perm='775'  # Dicom directory permissions
 default_delimiter='_' # Delimiter between dicom header information
@@ -89,6 +88,7 @@ ${ora}OPTIONS${whi}: Can input multiple options in any order
  ${pur}-d${whi}   Input delimiter. ${ora}default: '${gre}${default_delimiter}${ora}'${whi}
  [${ora}5${whi}] ${gre}dcm ${pur}-d ${ora}'-' ${whi}# Change output delimiter to '${gre}-${whi}'
  ${pur}-f${whi}   Rename files ${red}WITHOUT ${whi}creating scan folder
+ ${pur}-i${whi}   Ignore progress updates ${ora}(${whi}alerts user every ${gre}${rename_alert}${whi} files${ora})${whi}
  ${pur}-h${whi} or ${pur}--help${whi}  Display this message
  ${pur}-m${whi}   Change folder depth search from ${ora}default: ${gre}${default_depth_search}${whi}
  [${ora}6${whi}] ${gre}dcm ${pur}-m ${ora}2 ${whi}# Search folder depth of ${ora}2${whi}
