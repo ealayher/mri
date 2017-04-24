@@ -1,18 +1,19 @@
 #!/bin/bash
 #--------------------------------------------------------------------------------------#
-# Created: 05/29/2014 By: Evan Layher (evan.layher@psych.ucsb.edu)
+# Created: 05/29/2014 By: Evan Layher (layher@psych.ucsb.edu)
 # Revised: 12/13/2014 By: Evan Layher # (1.1)
 # Revised: 09/08/2015 By: Evan Layher # (2.0) Cleaner, faster and more versatile
 # Revised: 01/25/2017 By: Evan Layher # (3.0) Mac and Linux compatible + minor updates
+# Revised: 04/22/2017 By: Evan Layher # (3.1) minor updates
 #--------------------------------------------------------------------------------------#
 # Correct for fMRI multiple comparisons with gaussian random field (GRF) statistics using FSL's 'cluster' function
-# As described on http://fsl.fmrib.ox.ac.uk/fsl/fslwiki/Cluster
+# http://fsl.fmrib.ox.ac.uk/fsl/fslwiki/Cluster
 # MUST SOURCE fsl.sh script before running
 # ASSUMES STANDARD FSL NAMING CONVENTION OF DIRECTORIES and FILES
 # Run this script with '-h' option to read full help message
 
 ## --- LICENSE INFORMATION --- ##
-## cluster_GRF.sh is the proprietary property of The Regents of the University of California ("The Regents.")
+## cluster_grf.sh is the proprietary property of The Regents of the University of California ("The Regents.")
 
 ## Copyright © 2014-17 The Regents of the University of California, Davis campus. All Rights Reserved.
 
@@ -65,6 +66,8 @@ wait_time='10' # Number of seconds to wait if "-f" option used
 feat_stats_ext='.nii.gz' # FSL stat file extension
 group_feat_ext='.gfeat'  # FSL group FEAT output folder extension
 feat_stats_dir='stats'   # FSL stats folder within '.feat'
+cope_dir_name='cope'     # FSL 'cope' : copeX.feat folder name
+cope_dir_ext='.feat'     # FSL '.feat': copeX.feat extension name
 #--------------------------- DEFAULT SETTINGS ------------------------------#
 max_bg_jobs='5' # Maximum number of background processes (1-10)
 text_editors=('kwrite' 'gedit' 'open -a /Applications/TextWrangler.app' 'open' 'nano' 'emacs') # text editor commands in order of preference
@@ -180,7 +183,7 @@ ${red}END OF HELP: ${gre}${script_path}${whi}"
 #----------------------- GENERAL SCRIPT VARIABLES --------------------------#
 script_start_time=$(date +%s)   # Time in seconds
 script_path="${BASH_SOURCE[0]}" # Script path (becomes absolute path later)
-version_number='3.0'            # Script version number
+version_number='3.1'            # Script version number
 
 	###--- 'yes' or 'no' options (inputs do the opposite of default) ---###
 activate_colors='yes' # 'yes': Display messages in color [INPUT: '-nc']
@@ -255,7 +258,7 @@ option_eval () { # Evaluates command line options
 		c_vals+=("${1}") # Multiple cope.feat directories arise when FSL blocks are NOT combined
 	elif [ "${m_in}" == 'yes' 2>/dev/null ]; then
 		check_struc_masks $(mac_readlink "${1}") # Cluster correct with structural mask
-	elif [ "${o_in}" == 'yes' 2>/dev/null ]; then # Use p-value threshold
+	elif [ "${o_in}" == 'yes' 2>/dev/null ]; then # Use specified output folder
 		o_in='no' # Reset value
 		if [ -d "${1}" ] || [ -L "${1}" ]; then
 			output_folder+=($(mac_readlink "${1}"))
@@ -296,13 +299,14 @@ activate_options () { # Activate input options
 	rm_in='no' # [-rm] read in remove options
 	s_in='no'  # [-s] stat numbers (e.g. zstat1.nii.gz) (whole number greater than 0)
 	t_in='no'  # [-t] t-value threshold (number)
+
 	if [ "${1}" == '-c' ]; then
 		c_in='yes' 		      # Read in user input (cope number(s))
 	elif [ "${1}" == '-cs' ]; then
 		clear_screen='no'	  # Do not clear screen
 	elif [ "${1}" == '-f' ]; then
 		force_create='yes'    # Create files without prompting
-		if [ -z "${wait_time}" ] || ! [ "${wait_time}" -eq "${wait_time}" ]; then
+		if [ -z "${wait_time}" ] || ! [ "${wait_time}" -eq "${wait_time}" 2>/dev/null ]; then
 			bad_inputs+=("NON-INTEGER_VARIABLE_WITHIN_SCRIPT:wait_time:-f")
 		fi # Integer needed for 'seq' command
 	elif [ "${1}" == '-h' ] || [ "${1}" == '--help' ]; then
@@ -336,7 +340,7 @@ activate_options () { # Activate input options
 } # activate_options
 
 check_bad_inputs () { # Exit script if bad inputs found
-	if [ "${#bad_inputs[@]}" -gt 0 ]; then
+	if [ "${#bad_inputs[@]}" -gt '0' ]; then
 		re_enter_input_message ${bad_inputs[@]}
 		exit_message 99 -nt
 	fi
@@ -762,7 +766,7 @@ else # Sort unique values
 fi
 
 check_pos_then_neg=($(printf "%s${IFS}" ${pos_then_neg[@]} |sort -u))
-if [ "${#check_pos_then_neg[@]}" -ne 2 ]; then
+if [ "${#check_pos_then_neg[@]}" -ne '2' ]; then
 	echo "${red}ARRAY MUST HAVE 2 UNIQUE VALUES: ${ora}pos_then_neg:${whi}"
 	display_values ${check_pos_then_neg[@]}
 	exit_message 2 -nm -nt
@@ -810,7 +814,7 @@ fi
 
 if [ "${#output_folder[@]}" -eq '0' ]; then
 	if [ "${#stat_inputs[@]}" -gt '0' ]; then
-		final_output=$(pwd)
+		final_output="$(pwd)"
 	fi
 elif [ "${#output_folder[@]}" -eq '1' ]; then
 	final_output="${output_folder[0]}"
@@ -825,10 +829,10 @@ if [ "${#c_vals[@]}" -eq '0' ]; then # Which cope.feat directories to use
 	if [ "${#default_cope_files[@]}" -eq '0' ]; then
 		c_vals=('^') # Used with 'grep -E' (gets all cope values)
 	else
-		c_vals=($(printf "cope%s.feat${IFS}" ${default_cope_files[@]} |sort -u)) # Sort unique cope.feat directories
+		c_vals=($(printf "${cope_dir_name}%s${cope_dir_ext}${IFS}" ${default_cope_files[@]} |sort -u)) # Sort unique cope.feat directories
 	fi
 else
-	c_vals=($(printf "cope%s.feat${IFS}" ${c_vals[@]} |sort -u)) # Sort unique cope.feat directories
+	c_vals=($(printf "${cope_dir_name}%s${cope_dir_ext}${IFS}" ${c_vals[@]} |sort -u)) # Sort unique cope.feat directories
 fi # if [ "${#c_vals[@]}" -eq '0' ]
 
 # Check structural mask files
@@ -881,10 +885,10 @@ miss_count='0' # Track number of missing stats folders
 
 for i in ${!feat_dirs[@]}; do
 	feat_dir="${feat_dirs[${i}]}"
-	cope_find=($(find "${feat_dir}/" -name "cope*feat" |grep -E "${cope_filter}" |sed 's@//@/@g')) # Find in linked folders too
+	cope_find=($(find "${feat_dir}/" -name "${cope_dir_name}*${cope_dir_ext}" |grep -E "${cope_filter}" |sed 's@//@/@g')) # Find in linked folders too
 
 	if [ "${#cope_find[@]}" -eq '0' ]; then # If lower-level FEAT or missing desired cope.feats
-		if [ "${c_vals[0]}" == '^' ]; then # If '-c' inputs, ignore null results
+		if [ "${c_vals[0]}" == '^' ]; then # If no '-c' inputs, ignore null results
 			rm_cluster_dir=("${feat_dir}/${output_cluster_dir}") # If removing files
 			cope_find=("${feat_dir}/${feat_stats_dir}") # add 'stats' folder
 		fi
@@ -1025,6 +1029,10 @@ if [ "${remove_clusters}" == 'yes' 2>/dev/null ]; then # Remove files
 		echo "${pur}T OR Z-VALUE(S): ${whi}"
 		display_values $(echo "${t_filt}" |tr '|' "${IFS}" |sed -e 's@\\@@g' -e 's@^_t@@g' -e 's/_$//g' -e 's/^\^$/ALL T OR Z-VALUES/g')
 
+		if [ "${#all_rm_vals[@]}" -eq '0' ]; then
+			exit_message 0 -nt
+		fi # If no files to remove
+		
 		echo "${ora}[${gre}ls${ora}] LIST ${gre}${#all_rm_vals[@]} ${ora}FILES TO REMOVE${whi}"
 		echo "${ora}[${gre}rm${ora}] REMOVE ${gre}${#all_rm_vals[@]} ${ora}FILES${whi}"
 		
@@ -1071,14 +1079,18 @@ if [ "${remove_clusters}" == 'yes' 2>/dev/null ]; then # Remove files
 		fi # if [ "${user_remove}" == 'l' 2>/dev/null ] || [ "${user_remove}" == 'ls' 2>/dev/null ]
 	done # until [ "${proceed}" == 'yes' 2>/dev/null ]
 else # Check stats directories
+	if [ "${include_brain}" == 'no' 2>/dev/null ] && [ "${#m_vals[@]}" -eq '0' ]; then
+		echo "${red}MUST SPECIFY MASK INPUT(S) ${pur}-m${red} IF EXCLUDING WHOLE BRAIN ${pur}-nb${whi}"
+		exit_message 9 -nt
+	fi
+	
 	if [ "${#stat_dirs[@]}" -eq '0' ] && [ "${#stat_files[@]}" -eq '0' ]; then
 		echo "${red}NO '${ora}stats${red}' DIRECTORIES FOUND${whi}"
-		exit_message 9 -nt
+		exit_message 10 -nt
 	elif [ "${#stat_dirs[@]}" -gt '0' ]; then
 		echo "${ora}SEARCHING FOR STAT FILES...${whi}"
 	
 		# Create 'grep -E' input and find stat files
-		miss_count='0' # Track number of missing stats files
 		for i in ${!nifti_stats[@]}; do # Loop through stat types
 			nifti_stat="${nifti_stats[${i}]}"
 			if [ "${#s_vals[@]}" -eq '0' ] && [ "${#default_stat_files[@]}" -eq '0' ]; then
@@ -1097,6 +1109,11 @@ else # Check stats directories
 	fi # if [ "${#stat_dirs[@]}" -eq '0' ] && [ "${#stat_files[@]}" -eq '0' ]
 	
 	stat_files=($(printf "%s${IFS}" ${stat_files[@]} | sort -u)) # Sort unique stat files
+	if [ "${#stat_files[@]}" -eq '0' ]; then
+		echo "${red}NO STAT FILES${whi}"
+		exit_message 0 -nt
+	fi
+	
 	if [ "${#feat_dirs[@]}" -eq '0' ] || [ "${include_brain}" == 'no' 2>/dev/null ]; then # Do not include whole brain output
 		total_corrections=$(echo |awk "{print ${#stat_files[@]}*${#m_vals[@]}*${#p_vals[@]}*${#t_vals[@]}}")
 	else
@@ -1154,11 +1171,6 @@ else # Check stats directories
 		fi
 	done # until [ "${proceed}" == 'yes' ]
 	
-	if [ "${#stat_files[@]}" -eq '0' ]; then
-		echo "${red}NO STAT FILES${whi}"
-		exit_message 0 -nt
-	fi
-	
 	file_increment='0'
 	for i in ${!stat_files[@]}; do # Cluster correct all stat files
 		stat_file="${stat_files[${i}]}"
@@ -1190,7 +1202,7 @@ else # Check stats directories
 			
 			if [ "${include_brain}" == 'no' 2>/dev/null ]; then
 				brain_master=''
-			elif ! [ -f "${brain_mask}" ] && [ "${#stat_inputs[@]}" -eq '0' ]; then
+			elif ! [ -f "${brain_mask}" ] && [ "${#stat_inputs[@]}" -eq '0' ]; then # Edit with brain mask to avoid empty voxels
 				echo "${red}MISSING WHOLE BRAIN MASK: ${ora}${brain_mask}${whi}"
 				continue
 			fi
