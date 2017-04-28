@@ -6,7 +6,11 @@ MRI and fMRI analysis using FMRIB Software Library (FSL)
 **bet_fsl.sh**    
 Brain extraction using **FSL**'s [**bet**](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/BET) function.   
 Allows user to easily redo and view **bet** output several times with various parameters.  
-Easy to manually erase excess tissues after automated **bet** (**linux** and **mac**).
+Easy to manually erase excess tissues after automated **bet** (**linux** and **mac**).  
+
+**beta_mean_fsl.sh**  
+Extract mean beta (parameter estimate) values using **FSL**'s [**fslmeants**](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/Fslutils) function.  
+Must run on higher level **FEAT** folders  
 
 **cluster_grf.sh**  
 Run Gaussian Random Field (GRF) statistics using **FSL**'s [**cluster**](http://fsl.fmrib.ox.ac.uk/fsl/fslwiki/Cluster) function to correct for multiple comparisons.  
