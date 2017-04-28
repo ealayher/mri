@@ -9,7 +9,9 @@ Allows user to easily redo and view **bet** output several times with various pa
 Easy to manually erase excess tissues after automated **bet** (**linux** and **mac**).  
 
 **beta_mean_fsl.sh**  
-Extract mean beta (parameter estimate) values using **FSL**'s [**fslmeants**](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/Fslutils) function.  
+Extract mean beta (parameter estimate) values using **FSL**'s [**fslmeants**](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/Fslutils) function.   
+Create files with mean beta values easily from the command line (**linux** and **mac**).  
+Can input several options from command line (use **-h** option for directions).  
 Must run on higher level **FEAT** folders  
 
 **cluster_grf.sh**  
