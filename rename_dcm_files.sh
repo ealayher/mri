@@ -4,6 +4,7 @@
 # Revised: 03/13/2016 By: Evan Layher (2.0): Updated code for efficiency
 # Revised: 03/16/2016 By: Evan Layher (2.1): Include echo number in filename if > 1 (field maps)
 # Revised: 02/16/2017 By: Evan Layher (2.2): Alert user of progress + minor updates
+# Revised: 06/28/2017 By: Evan Layher (2.3): Update download instructions
 #--------------------------------------------------------------------------------------#
 # Rename and organize raw dicom files
 #
@@ -70,6 +71,7 @@ IFS=$'\n' # newline separator (needed when paths have whitespace)
 script_usage () { # Script explanation: '-h' or '--help' option
 	echo "${red}HELP MESSAGE: ${gre}${script_path}${whi}
 ${ora}DESCRIPTION${whi}: Organize and rename dicom files
+${red}REQUIRES DICOM TOOLKIT PROGRAM (${whi}SEE ${ora}REFERENCE ${whi}FOR DOWNLOAD DIRECTIONS${red})
 ${pur}[${whi}1${pur}] ${whi}Creates scan folder: '${gre}${scan_dir[0]}${default_delimiter}${scan_dir[1]}${default_delimiter}${scan_dir[2]}${whi}'
 ${pur}[${whi}2${pur}] ${whi}Renames files: '${gre}${scan_dir[0]}${default_delimiter}${scan_dir[1]}${default_delimiter}${scan_dir[2]}${default_delimiter}${instance_num}${dcm_ext}${whi}'
      
@@ -107,11 +109,14 @@ text editors:
 ${gre}${text_editors[@]}${whi}
 
 ${ora}REFERENCE${whi}: ${gre}http://dcmtk.org/dcmtk.php.en${whi}
- [${ora}1${whi}] To get '${gre}dcmdump${whi}' download executable binary files: 
+[${ora}1${whi}] Download executable binary files in web browser: 
  ${ora}MAC            : ${gre}ftp://dicom.offis.de/pub/dicom/offis/software/dcmtk/dcmtk360/bin/dcmtk-3.6.0-mac-i686-static.tar.bz2${whi}
  ${ora}LINUX (static) : ${gre}ftp://dicom.offis.de/pub/dicom/offis/software/dcmtk/dcmtk360/bin/dcmtk-3.6.0-linux-i686-static.tar.bz2${whi}
  ${ora}LINUX (dynamic): ${gre}ftp://dicom.offis.de/pub/dicom/offis/software/dcmtk/dcmtk360/bin/dcmtk-3.6.0-linux-i686-dynamic.tar.bz2${whi}
- [${ora}2${whi}] Move ${gre}dcmdump${whi} into ${ora}/usr/bin${whi}: ${pur}sudo mv ${gre}dcmdump ${ora}/usr/bin${whi}
+ 
+[${ora}2${whi}] Activate path in '${ora}~/.bash_profile${whi}' file (${pur}input the following${whi}):
+ ${pur}DCMDICTPATH='${ora}<DOWNLOADED-FOLDER-PATH>${pur}/dcmtk-3.6.0-mac-i686-dynamic/share/dcmtk/dicom.dic'${whi}
+ ${pur}export PATH='${ora}<DOWNLOADED-FOLDER-PATH>${pur}/dcmtk-3.6.0-mac-i686-dynamic/bin:\$PATH'${whi}
      
 ${ora}VERSION: ${gre}${version_number}${whi}
 ${red}END OF HELP: ${gre}${script_path}${whi}"
@@ -121,7 +126,7 @@ ${red}END OF HELP: ${gre}${script_path}${whi}"
 #----------------------- GENERAL SCRIPT VARIABLES --------------------------#
 script_start_time=$(date +%s)   # Time in seconds
 script_path="${BASH_SOURCE[0]}" # Script path (becomes absolute path later)
-version_number='2.2'            # Script version number
+version_number='2.3'            # Script version number
 
 	###--- 'yes' or 'no' options (inputs do the opposite of default) ---###
 activate_colors='yes' # 'yes': Display messages in color [INPUT: '-nc']
