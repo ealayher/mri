@@ -4,6 +4,7 @@
 # Revised: 11/11/2015 By: Evan Layher (3.0) mac and linux compatible
 # Revised: 04/12/2016 By: Evan Layher (3.1) allow paths with spaces (minor updates)
 # Revised: 02/16/2017 By: Evan Layher (3.2) gzip nifti files and minor updates
+# Revised: 08/18/2017 By: Evan Layher (3.3) compatible with fsleyes (FSL 5.0.10+)
 #--------------------------------------------------------------------------------------#
 # Brain extract structural mri images using FSL's bet function
 
@@ -83,7 +84,7 @@ ${red}END OF HELP: ${gre}${script_path}${whi}"
 
 #----------------------- GENERAL SCRIPT VARIABLES --------------------------#
 script_path="${BASH_SOURCE[0]}" # Script path (becomes absolute path later)
-version_number='3.2'            # Script version number
+version_number='3.3'            # Script version number
 
 	###--- 'yes' or 'no' options (inputs do the opposite of default) ---###
 activate_colors='yes' # 'yes': Display messages in color [INPUT: '-nc']
@@ -199,7 +200,7 @@ bet_image () { # bet structural images
 	wait # Prevent corrupting nifti file
 	"${FSLDIR}/bin/bet" "${input_file}" "${output_file}" -g "${default_g}" -f "${default_f}" & # Brain extraction
 	wait # Prevent corrupting nifti file
-	"${FSLDIR}/bin/fslview" "${output_file}" "${input_file}" "${output_file}" -l Red 2>/dev/null
+	"${fsl_view_cmd}" "${output_file}" "${input_file}" "${output_file}" "${cm_option}" 2>/dev/null
 	redo_bet
 } # bet_image
 
@@ -279,7 +280,7 @@ redo_bet () { # Redo bet with new parameters
 		set_new_parameters
 		bet_image
 	elif [ "${bet_option}" == 'v' 2>/dev/null ]; then # Load output file twice to manually save in correct directory
-		"${FSLDIR}/bin/fslview" "${output_file}" "${input_file}" "${output_file}" -l Red 2>/dev/null
+		"${fsl_view_cmd}" "${output_file}" "${input_file}" "${output_file}" "${cm_option}" 2>/dev/null
 		redo_bet
 	else
 		re_enter_input_message "${bet_option}"
@@ -404,7 +405,15 @@ if [ -z "${FSLDIR}" ]; then # Check FSL directory exists
 	exit_message 1
 fi
 
-vital_file "${FSLDIR}/bin/bet" "${FSLDIR}/bin/fslview" "${FSLDIR}/bin/fslreorient2std" # Make sure files exist
+vital_file "${FSLDIR}/bin/bet" "${FSLDIR}/bin/fslreorient2std" # Make sure files exist
+
+if [ -f "${FSLDIR}/bin/fsleyes" ]; then
+	fsl_view_cmd="${FSLDIR}/bin/fsleyes" # Use fsleyes (5.0.10+)
+	cm_option='-cm red' # Red color map option
+elif [ -f "${FSLDIR}/bin/fslview" ]; then
+	fsl_view_cmd="${FSLDIR}/bin/fslview" # Use fslview (5.0.9 and below)
+	cm_option='-l Red' # Red color map option
+fi
 
 base_script=$(basename "${script_path}")
 echo "RUNNING: ${gre}${base_script}"
@@ -489,7 +498,7 @@ if [ -f "${output_file}" ]; then # Prompt to overwrite existing file
 			echo "${red}NO BET OCCURRED${whi}"
 			exit_message 0
 		elif [ "${overwrite_option}" == 'v' 2>/dev/null ]; then
-			"${FSLDIR}/bin/fslview" "${output_file}" "${input_file}" "${output_file}" -l Red 2>/dev/null
+			"${fsl_view_cmd}" "${output_file}" "${input_file}" "${output_file}" "${cm_option}" 2>/dev/null
 			clear
 		else
 			re_enter_input_message "${overwrite_option}"
