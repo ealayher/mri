@@ -413,6 +413,9 @@ if [ -f "${FSLDIR}/bin/fsleyes" ]; then
 elif [ -f "${FSLDIR}/bin/fslview" ]; then
 	fsl_view_cmd="${FSLDIR}/bin/fslview" # Use fslview (5.0.9 and below)
 	cm_option='-l Red' # Red color map option
+else
+	echo "${red}MISSING ${ora}fslview ${red}AND ${ora}fsleyes${whi}"
+	exit_message 2
 fi
 
 base_script=$(basename "${script_path}")
@@ -438,10 +441,10 @@ fi
 # Exit script if invalid inputs found
 if [ "${#bad_inputs[@]}" -gt '0' ]; then
 	re_enter_input_message ${bad_inputs[@]}
-	exit_message 2
+	exit_message 3
 elif [ -z "${input_file}" ]; then  # Input file must be specified
 	echo "${red}MUST SPECIFY NIFTI INPUT FILE${whi}"
-	exit_message 3
+	exit_message 4
 elif [ -z "${output_file}" ]; then # If output file is unspecified give default name
 	output_file=$(echo "${input_file}" |sed "s/${zip_ext}$//g")"${default_bet_name}${zip_ext}"
 fi # if [ "${#bad_inputs[@]}" -gt '0' ]
