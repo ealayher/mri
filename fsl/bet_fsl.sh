@@ -5,6 +5,7 @@
 # Revised: 04/12/2016 By: Evan Layher (3.1) allow paths with spaces (minor updates)
 # Revised: 02/16/2017 By: Evan Layher (3.2) gzip nifti files and minor updates
 # Revised: 08/18/2017 By: Evan Layher (3.3) compatible with fsleyes (FSL 5.0.10+)
+# Revised: 11/01/2017 By: Evan Layher (3.4) Robust BET (-R option)
 #--------------------------------------------------------------------------------------#
 # Brain extract structural mri images using FSL's bet function
 
@@ -198,7 +199,7 @@ bet_image () { # bet structural images
 	echo "${ora}G value: ${gre}${default_g}${whi}"
 	"${FSLDIR}/bin/fslreorient2std" "${input_file}" "${input_file}" & # Reorient brain to standard
 	wait # Prevent corrupting nifti file
-	"${FSLDIR}/bin/bet" "${input_file}" "${output_file}" -g "${default_g}" -f "${default_f}" & # Brain extraction
+	"${FSLDIR}/bin/bet" "${input_file}" "${output_file}" -g "${default_g}" -f "${default_f}" -R & # Brain extraction
 	wait # Prevent corrupting nifti file
 	"${fsl_view_cmd}" "${output_file}" "${input_file}" "${output_file}" "${cm_option}" 2>/dev/null
 	redo_bet
