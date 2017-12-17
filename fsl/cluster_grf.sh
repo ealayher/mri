@@ -5,6 +5,7 @@
 # Revised: 09/08/2015 By: Evan Layher # (2.0) Cleaner, faster and more versatile
 # Revised: 01/25/2017 By: Evan Layher # (3.0) Mac and Linux compatible + minor updates
 # Revised: 04/22/2017 By: Evan Layher # (3.1) minor updates
+# Revised: 12/16/2017 By: Evan Layher # (3.2) minor updates
 #--------------------------------------------------------------------------------------#
 # Correct for fMRI multiple comparisons with gaussian random field (GRF) statistics using FSL's 'cluster' function
 # http://fsl.fmrib.ox.ac.uk/fsl/fslwiki/Cluster
@@ -42,23 +43,21 @@
 ## --------------------------- ##
 
 #-------------------------------- VARIABLES --------------------------------#
-default_t=('2.3')     # ('2.3'): Can place multiple values e.g. ('2.3' '3.1') 
+default_t=('3.1')     # ('3.1'): Can place multiple values e.g. ('2.3' '3.1') 
 default_p=('0.05')    # ('0.05'): Can place multiple values e.g. ('0.05' '0.01')
 nifti_stats=('zstat') # ('zstat') Type of nifti stat file(s) to cluster correct inside FEAT 'stats' folder e.g. ('tstat' 'zstat')
-default_cope_files=() # () is all cope files; otherwise e.g. ('1' '4') for cope1.feat, cope4.feat
-default_stat_files=() # () is all stat files; otherwise e.g. ('1' '2') for zstat1.nii.gz, zstat2.nii.gz
 default_masks=()      # () is no folders/files; otherwise e.g. ('examplepath1/maskDir' 'examplepath2/maskDir')
 
-feat_extensions=('.feat' '.gfeat') # ('.feat' '.gfeat'): Only include FSL folders with these extensions
-mask_extensions=('.nii.gz')        # ('.nii.gz'): Only include structural masks with these extensions
-stat_extensions=('.nii.gz')        # ('.nii.gz'): Stat file extensions for single file input
+feat_exts=('.feat' '.gfeat') # ('.feat' '.gfeat'): Only include FSL folders with these extensions
+mask_exts=('.nii.gz')        # ('.nii.gz'): Only include structural masks with these extensions
+stat_exts=('.nii.gz')        # ('.nii.gz'): Stat file extensions for single file input
 whole_brain_mask='mask.nii.gz'     # mask.nii.gz: Name of group-level whole brain mask found in cope.feat folder
 whole_brain_output='brain'         # Output folder of whole brain cluster corrected results
 
 output_cluster_dir='cluster_grf' # Folder that will contain cluster output files in each cope.feat folder
 output_mask_edits='mask_edits'   # Folder that will contain edited masks in ${output_cluster_dir}
 output_edit_name='_edit'         # Mask edit filename attached to mask file
-pos_then_neg=('pos' 'neg')       # Filename ending for positive and negative stat values respectively
+pos_neg=('pos' 'neg')       # Filename ending for positive and negative stat values respectively
 
 wait_time='10' # Number of seconds to wait if "-f" option used
 
@@ -70,12 +69,12 @@ cope_dir_name='cope'     # FSL 'cope' : copeX.feat folder name
 cope_dir_ext='.feat'     # FSL '.feat': copeX.feat extension name
 #--------------------------- DEFAULT SETTINGS ------------------------------#
 max_bg_jobs='5' # Maximum number of background processes (1-10)
-text_editors=('kwrite' 'gedit' 'open -a /Applications/TextWrangler.app' 'open' 'nano' 'emacs') # text editor commands in order of preference
+text_editors=('kwrite' 'kate' 'gedit' 'open -a /Applications/BBEdit.app' 'open') # GUI text editor commands in preference order
 
-IFS_original="${IFS}" # whitespace separator
-IFS=$'\n' # newline separator (needed when paths have whitespace)
+IFS_old="${IFS}" # whitespace separator
+IFS=$'\n' # newline separator (useful when paths have whitespace)
 #------------------------- SCRIPT HELP MESSAGE -----------------------------#
-script_usage () { # Script explanation: '-h' or '--help' option
+usage () { # Help message: '-h' or '--help' option
 	echo "${red}HELP MESSAGE: ${gre}${script_path}${whi}
 ${ora}DESCRIPTION${whi}: FSL '${gre}cluster${whi}' using Gaussian Random Field (GRF) statistics
  Perform '${gre}cluster${whi}' on FSL fMRI stat files to correct for multiple comparisons
@@ -95,16 +94,16 @@ ${ora}OUTPUT FOLDERS WITHIN DESIRED FEAT FOLDER(S) UNLESS SPECIFIED WITH ${pur}-
 ${ora}OUTPUT FILE(S)${whi}: (${pur}NAMING CONVENTION EXAMPLE: ${ora}zstat1_brain_t2.3_p0.05_grf${whi})
  ${red}NOTE: ${ora}OUTPUTS BOTH POSITIVE AND NEGATIVE THRESHOLDING FILES${whi}
  [${pur}1${whi}] ${ora}zstat1_brain_t2.3_p0.05_grf.nii.gz${whi} # Thresholded cluster corrected file
- [${pur}2${whi}] ${ora}zstat1_brain_t2.3_p0.05_grf_${pur}${pos_then_neg[1]}${gre}.nii.gz${whi} # Negative corrected file
- [${pur}3${whi}] ${ora}zstat1_brain_t2.3_p0.05_grf_${pur}${pos_then_neg[0]}${gre}.nii.gz${whi} # Positive corrected file
- [${pur}4-5${whi}] ${ora}zstat1_brain_t2.3_p0.05_grf_${pur}${pos_then_neg[1]}${gre}_idx.nii.gz${whi} # Index of cluster(s)
- [${pur}6-7${whi}] ${ora}zstat1_brain_t2.3_p0.05_grf_${pur}${pos_then_neg[0]}${gre}_clusters.txt${whi} # Cluster information
- [${pur}8-9${whi}] ${ora}zstat1_brain_t2.3_p0.05_grf_${pur}${pos_then_neg[1]}${gre}_lmax.txt${whi} # Local maxima per cluster
- [${pur}10+${whi}] ${ora}zstat1_brain_t2.3_p0.05_grf_${pur}${pos_then_neg[0]}${gre}_idx_${red}X${gre}.nii.gz${whi} # Individual cluster mask
+ [${pur}2${whi}] ${ora}zstat1_brain_t2.3_p0.05_grf_${pur}${pos_neg[1]}${gre}.nii.gz${whi} # Negative corrected file
+ [${pur}3${whi}] ${ora}zstat1_brain_t2.3_p0.05_grf_${pur}${pos_neg[0]}${gre}.nii.gz${whi} # Positive corrected file
+ [${pur}4-5${whi}] ${ora}zstat1_brain_t2.3_p0.05_grf_${pur}${pos_neg[1]}${gre}_idx.nii.gz${whi} # Index of cluster(s)
+ [${pur}6-7${whi}] ${ora}zstat1_brain_t2.3_p0.05_grf_${pur}${pos_neg[0]}${gre}_clusters.txt${whi} # Cluster information
+ [${pur}8-9${whi}] ${ora}zstat1_brain_t2.3_p0.05_grf_${pur}${pos_neg[1]}${gre}_lmax.txt${whi} # Local maxima per cluster
+ [${pur}10+${whi}] ${ora}zstat1_brain_t2.3_p0.05_grf_${pur}${pos_neg[0]}${gre}_idx_${red}X${gre}.nii.gz${whi} # Individual cluster mask
  
  ${ora}IF ${red}NO SIGNIFICANT ${ora}RESULTS FOUND${whi}
- [${pur}1-2${whi}] ${ora}zstat1_brain_t2.3_p0.05_${pur}${pos_then_neg[1]}${red}_none.nii.gz${whi} # Empty file
- [${pur}3-4${whi}] ${ora}zstat1_brain_t2.3_p0.05_${pur}${pos_then_neg[0]}${red}_none.txt${whi} # Parameter information
+ [${pur}1-2${whi}] ${ora}zstat1_brain_t2.3_p0.05_${pur}${pos_neg[1]}${red}_none.nii.gz${whi} # Empty file
+ [${pur}3-4${whi}] ${ora}zstat1_brain_t2.3_p0.05_${pur}${pos_neg[0]}${red}_none.txt${whi} # Parameter information
  
  ${ora}IF ${red}ERROR ${ora}OCCURS${whi}
  [${pur}1${whi}] ${ora}zstat1_brain_t2.3_p0.05${red}_invalid.txt${whi}
@@ -170,20 +169,17 @@ ${gre}${nifti_stats[@]}${whi}
 t-value(s): 
 ${gre}${default_t[@]}${whi}
 
-text editors: 
-${gre}${text_editors[@]}${whi}
-
 ${ora}REFERENCE${whi}: ${gre}http://fsl.fmrib.ox.ac.uk/fsl/fslwiki/Cluster${whi}
      
-${ora}VERSION: ${gre}${version_number}${whi}
+${ora}VERSION: ${gre}${version}${whi}
 ${red}END OF HELP: ${gre}${script_path}${whi}"
-	exit_message 0 -nt -nm
-} # script_usage
+	exit_message 0 -nm -nt
+} # usage
 
 #----------------------- GENERAL SCRIPT VARIABLES --------------------------#
-script_start_time=$(date +%s)   # Time in seconds
+start_time=$(date +%s) # Time in seconds
 script_path="${BASH_SOURCE[0]}" # Script path (becomes absolute path later)
-version_number='3.1'            # Script version number
+version='3.2' # Script version number
 
 	###--- 'yes' or 'no' options (inputs do the opposite of default) ---###
 activate_colors='yes' # 'yes': Display messages in color [INPUT: '-nc']
@@ -203,7 +199,7 @@ show_time='yes'       # 'yes': Display process time      [INPUT: '-nt']
 suggest_help='no'     # 'no' : Suggest help (within script option: '-nh')
 
 #-------------------------------- FUNCTIONS --------------------------------#
-option_eval () { # Evaluates command line options
+option_eval () { # Evaluate user inputs
 	if [ "${1}" == '-c' 2>/dev/null ] || [ "${1}" == '-cs' 2>/dev/null ] || \
 	   [ "${1}" == '-f' 2>/dev/null ] ||  [ "${1}" == '-h' 2>/dev/null ] || \
 	   [ "${1}" == '--help' 2>/dev/null ] || [ "${1}" == '-m' 2>/dev/null ] || \
@@ -219,7 +215,7 @@ option_eval () { # Evaluates command line options
 	elif [ "${read_feat_dir}" == 'yes' 2>/dev/null ]; then
 		if [ -f "${1}" ]; then # If list of feat directories or single file input
 			skip_feat='no' # Reset value (check for FEAT folder)
-			check_stat=($(echo "${1}" |grep -E $(printf "%s\$${IFS}" ${stat_extensions[@]} |sed 's@\.@\\.@g' |tr "${IFS}" '|' |sed 's/|$//')))
+			check_stat=($(echo "${1}" |grep -E $(printf "%s\$${IFS}" ${stat_exts[@]} |sed 's@\.@\\.@g' |tr "${IFS}" '|' |sed 's/|$//')))
 			if [ "${#check_stat[@]}" -gt '0' ]; then
 				stat_inputs+=($(mac_readlink "${1}"))
 				skip_feat='yes'
@@ -227,7 +223,7 @@ option_eval () { # Evaluates command line options
 			fi
 			
 			if [ "${skip_feat}" == 'no' 2>/dev/null ]; then # Search for FEAT folders
-				check_feat_paths=($(cat "${1}" 2>/dev/null |grep -E $(printf "%s\$${IFS}" ${feat_extensions[@]} |sed 's@\.@\\.@g' |tr "${IFS}" '|' |sed 's/|$//')))
+				check_feat_paths=($(cat "${1}" 2>/dev/null |grep -E $(printf "%s\$${IFS}" ${feat_exts[@]} |sed 's@\.@\\.@g' |tr "${IFS}" '|' |sed 's/|$//')))
 				if [ "${#check_feat_paths[@]}" -eq '0' ]; then
 					bad_inputs+=("input_file:${1}")
 				else # Gather existing FEAT directories from files
@@ -241,8 +237,8 @@ option_eval () { # Evaluates command line options
 					done # for i in ${!check_feat_paths[@]}
 				fi # if [ "${#check_feat_paths[@]}" -eq '0' ]
 			fi # if [ "${skip_feat}" == 'no' 2>/dev/null ]
-		elif [ -d "${1}" ] || [ -L "${1}" ]; then # Gather valid FEAT folders (defined in 'feat_extensions' array)
-			check_feat_path=($(echo "${1}" |grep -E $(printf "%s${IFS}" ${feat_extensions[@]} |sed 's@\.@\\.@g' |tr "${IFS}" '|' |sed 's/|$//')))
+		elif [ -d "${1}" ] || [ -L "${1}" ]; then # Gather valid FEAT folders (defined in 'feat_exts' array)
+			check_feat_path=($(echo "${1}" |grep -E $(printf "%s${IFS}" ${feat_exts[@]} |sed 's@\.@\\.@g' |tr "${IFS}" '|' |sed 's/|$//')))
 			if [ "${#check_feat_path[@]}" -eq '0' ]; then
 				bad_inputs+=("invalid_feat_extension:${1}")
 			else
@@ -334,14 +330,14 @@ activate_options () { # Activate input options
 		s_in='yes'		      # Read in user input (stat file number(s))
 	elif [ "${1}" == '-t' ] || [ "${1}" == '-z' ]; then
 		t_in='yes'		      # Read in user input (thresholding value(s))
-	else
+	else # if option is undefined (for debugging)
 		bad_inputs+=("ERROR:activate_options:${1}")
 	fi
 } # activate_options
 
 check_bad_inputs () { # Exit script if bad inputs found
 	if [ "${#bad_inputs[@]}" -gt '0' ]; then
-		re_enter_input_message ${bad_inputs[@]}
+		invalid_msg ${bad_inputs[@]}
 		exit_message 99 -nt
 	fi
 } # check_bad_inputs
@@ -357,7 +353,7 @@ check_natural_num () { # Check whole number greater than 0 (-c and -s options)
 check_p_values () { # check p-values are in appropriate range 0 to 1
 	for i_check_p_values in ${@}; do
 		check_valid_p=$(echo |awk -v var="${i_check_p_values}" '{print (var >= 0 && var <= 1)}')
-		if [ "${check_valid_p}" -eq '0' ]; then
+		if [ "${check_valid_p}" -eq '0' ]; then # Returns 1 if valid, 0 if invalid
 			bad_inputs+=("p-value:${i_check_p_values}")
 		fi
 	done
@@ -367,15 +363,15 @@ check_struc_masks () { # Confirms valid mask file or searches directory for mask
 	for i_check_struc_masks in ${@}; do
 		check_masks=() # Reset check_masks array
 		if [ -f "${i_check_struc_masks}" ]; then
-			check_mask=($(mac_readlink "${i_check_struc_masks}" |grep -E $(printf "%s${IFS}" ${mask_extensions[@]} |sed 's@\.@\\.@g' |tr "${IFS}" '|' |sed 's/|$//')))
+			check_mask=($(mac_readlink "${i_check_struc_masks}" |grep -E $(printf "%s${IFS}" ${mask_exts[@]} |sed 's@\.@\\.@g' |tr "${IFS}" '|' |sed 's/|$//')))
 			if [ "${#check_mask[@]}" -eq '0' ]; then
 				bad_inputs+=("invalid_mask_extension:${i_check_struc_masks}")
 			else
 				m_vals+=("${check_mask[0]}")
 			fi
 		elif [ -d "${i_check_struc_masks}" ]; then
-			for j in ${!mask_extensions[@]}; do
-				mask_ext=$(echo "${mask_extensions[${j}]}" |sed 's@\.@\\.@g')
+			for j in ${!mask_exts[@]}; do
+				mask_ext=$(echo "${mask_exts[${j}]}" |sed 's@\.@\\.@g')
 				check_masks+=($(find "${i_check_struc_masks}" -maxdepth 1 -type f -name "*${mask_ext}"))
 			done
 		
@@ -393,7 +389,7 @@ check_struc_masks () { # Confirms valid mask file or searches directory for mask
 check_t_values () { # check t-values are between -1000000 and 1000000 (arbitrarily large range)
 	for i_check_p_values in ${@}; do
 		check_valid_t=$(echo |awk -v var="${i_check_p_values}" '{print (var > -1000000 && var < 1000000)}')
-		if [ "${check_valid_t}" -eq '0' ]; then
+		if [ "${check_valid_t}" -eq '0' ]; then # Returns 1 if valid, 0 if invalid
 			bad_inputs+=("t-value:${i_check_p_values}")
 		fi
 	done
@@ -429,8 +425,8 @@ cluster_func () { # GRF cluster correction
 	
 	if [ "${check_dlh}" -eq '1' 2>/dev/null ] && [ "${check_vol}" -eq '1' 2>/dev/null ]; then
 		combine_files=() # Reset array
-		for i_cluster_func in ${!pos_then_neg[@]}; do
-			pos_or_neg="${pos_then_neg[${i_cluster_func}]}"
+		for i_cluster_func in ${!pos_neg[@]}; do
+			pos_or_neg="${pos_neg[${i_cluster_func}]}"
 			stat_out="${stat_out_temp}_${pos_or_neg}"
 			
 			if [ "${i_cluster_func}" -eq '0' ]; then # positive value
@@ -457,7 +453,7 @@ cluster_func () { # GRF cluster correction
 				
 				combine_files+=("${stat_out}")
 			fi # if [ "${check_empty[0]}" -eq '0' ]
-		done # for i_cluster_func in ${!pos_then_neg[@]}
+		done # for i_cluster_func in ${!pos_neg[@]}
 		
 		if [ "${#combine_files[@]}" -eq '1' ]; then # Significant in 1 direction only
 			cp "${combine_files[0]}${feat_stats_ext}" "${stat_out_temp}${feat_stats_ext}"
@@ -490,22 +486,22 @@ control_bg_jobs () { # Controls number of background processes
 		if [ "${max_bg_jobs}" -gt '1' 2>/dev/null ] && [ "${max_bg_jobs}" -le '10' 2>/dev/null ]; then 
 			true # Make sure variable is defined and valid number
 		elif [ "${max_bg_jobs}" -gt '10' 2>/dev/null ]; then
-			echo "RESTRICTING BACKGROUND PROCESSES TO 10"
+			echo "${red}RESTRICTING BACKGROUND PROCESSES TO 10${whi}"
 			max_bg_jobs='10' # Background jobs should not exceed '10' (Lowers risk of crashing)
 		else # If 'max_bg_jobs' not defined as integer
-			echo "INVALID VALUE: max_bg_jobs='${max_bg_jobs}'"
+			echo "${red}INVALID VALUE: ${ora}max_bg_jobs='${gre}${max_bg_jobs}${ora}'${whi}"
 			max_bg_jobs='1'
 		fi
 	
 		job_count=($(jobs -p)) # Place job IDs into array
-		if ! [ "$?" -eq '0' ]; then
-			echo "JOB COUNT FAIL (control_bg_jobs): RESTRICTING BACKGROUND PROCESSES"
+		if ! [ "$?" -eq '0' ]; then # If 'jobs -p' command fails
+			echo "${red}ERROR (${ora}control_bg_jobs${red}): ${ora}RESTRICTING BACKGROUND PROCESSES${whi}"
 			max_bg_jobs='1'
 			wait
 		else
 			if [ "${#job_count[@]}" -ge "${max_bg_jobs}" ]; then
-				sleep 0.2
-				control_bg_jobs
+				sleep 0.2 # Wait 0.2 seconds to prevent overflow errors
+				control_bg_jobs # Check job count
 			fi
 		fi # if ! [ "$?" -eq '0' ]
 	fi # if [ "${max_bg_jobs}" -eq '1' 2>/dev/null ]
@@ -585,44 +581,44 @@ edit_masks () { # edit masks with whole brain mask (to remove empty voxels)
 	cd "${wd}" # wd defined in 'dir_change'
 } # edit_masks
 
-mac_readlink () { # Get absolute path of a file
+mac_readlink () { # Get absolute path of a file (mac and linux compatible)
 	dir_mac=$(dirname "${1}")   # Directory path
 	file_mac=$(basename "${1}") # Filename
-	wd_mac="$(pwd)" # Working directory path
+	wd_mac=$(pwd) # Working directory path
 
 	if [ -d "${dir_mac}" ]; then
 		cd "${dir_mac}"
 		echo "$(pwd)/${file_mac}" # Print full path
-		cd "${wd_mac}" # Change directory back to original directory
+		cd "${wd_mac}" # Change back to original directory
 	else
 		echo "${1}" # Print input
 	fi
 } # mac_readlink
 
-open_text_editor () { # Opens input file
-	file_to_open="${1}"
-	valid_text_editor='no'
+open_text_editor () { # Opens input file in background (GUI text editors only)
+	open_file="${1}"  # Input file
+	valid_editor='no' # Remains 'no' until command is valid
 	
-	if [ -f "${file_to_open}" ]; then
+	if [ -f "${open_file}" ]; then # If input file exists
 		for i in ${!text_editors[@]}; do # Loop through indices
-			${text_editors[i]} "${file_to_open}" 2>/dev/null &
+			eval "${text_editors[${i}]} ${open_file} 2>/dev/null &" # eval for complex commands
 			pid="$!" # Background process ID
-			check_text_pid=($(ps "${pid}" |grep "${pid}")) # Check if pid is running
+			check_pid=($(ps "${pid}" |grep "${pid}")) # Check if pid is running
 			
-			if [ "${#check_text_pid[@]}" -gt '0' ]; then
-				valid_text_editor='yes'
+			if [ "${#check_pid[@]}" -gt '0' ]; then
+				valid_editor='yes'
 				break
-			fi
+			fi # Break loop when valid command is found
 		done
 
-		if [ "${valid_text_editor}" == 'no' 2>/dev/null ]; then
-			echo "${red}NO VALID TEXT EDITORS:${whi}"
+		if [ "${valid_editor}" == 'no' 2>/dev/null ]; then
+			echo "${red}NO VALID TEXT EDITOR COMMANDS IN ${ora}text_editors ${red}ARRAY:${whi}"
 			printf "${ora}%s${IFS}${whi}" ${text_editors[@]}
 			exit_message 98 -nh -nm -nt
 		fi
-	else
-		echo "${red}MISSING FILE: ${ora}${file_to_open}${whi}"
-	fi
+	else # Missing input file
+		echo "${red}MISSING FILE: ${ora}${open_file}${whi}"
+	fi # if [ -f "${open_file}" ]; then
 } # open_text_editor
 
 slow_grep_v () { # Use for-loop when grep argument list is too long
@@ -657,7 +653,7 @@ vital_file () { # exits script if an essential file is missing
 } # vital_file
 
 #-------------------------------- MESSAGES ---------------------------------#
-exit_message () { # Message before exiting script
+exit_message () { # Script exit message
 	if [ -z "${1}" 2>/dev/null ] || ! [ "${1}" -eq "${1}" 2>/dev/null ]; then
 		exit_type='0'
 	else
@@ -678,25 +674,25 @@ exit_message () { # Message before exiting script
 		fi
 	done
 	
-	wait # Waits for background processes to finish before exiting
+	wait # Wait for background processes to finish
 
 	# Suggest help message
 	if [ "${suggest_help}" == 'yes' 2>/dev/null ]; then
-		echo "${ora}TO DISPLAY HELP MESSAGE TYPE: ${gre}${script_path} -h${whi}"
+		echo "${ora}FOR HELP: ${gre}${script_path} -h${whi}"
 	fi
 	
 	# Display exit message
 	if ! [ "${display_exit}" == 'no' 2>/dev/null ]; then # Exit message
-		echo "${pur}EXITING SCRIPT:${ora} ${script_path}${whi}"
+		echo "${pur}EXITING: ${ora}${script_path}${whi}"
 	fi
 	
 	# Display script process time
 	if [ "${show_time}" == 'yes' 2>/dev/null ]; then # Script time message
-		script_time_func 2>/dev/null
+		time_func 2>/dev/null
 	fi
 	
 	printf "${formatreset}\n"
-	IFS="${IFS_original}" # Reset IFS
+	IFS="${IFS_old}" # Reset IFS
 	exit "${exit_type}"
 } # exit_message
 
@@ -705,32 +701,31 @@ control_c () { # Function activates after 'ctrl + c'
 	exit_message 96 -nm -nt
 } # control_c
 
-re_enter_input_message () { # Displays invalid input message
+invalid_msg () { # Displays invalid input message
 	clear
 	echo "${red}INVALID INPUT:${whi}"
 	printf "${ora}%s${IFS}${whi}" ${@}
-	echo "${pur}PLEASE RE-ENTER INPUT${whi}"
-} # re_enter_input_message
+} # invalid_msg
 
-script_time_func () { # Script process time calculation
+time_func () { # Script process time calculation
 	func_end_time=$(date +%s) # Time in seconds
-	user_input_time="${1}"
-	valid_display_time='yes'
+	input_time="${1}"
+	valid_time='yes'
 	
-	if ! [ -z "${user_input_time}" ] && [ "${user_input_time}" -eq "${user_input_time}" 2>/dev/null ]; then
-		func_start_time="${user_input_time}"
-	elif ! [ -z "${script_start_time}" ] && [ "${script_start_time}" -eq "${script_start_time}" 2>/dev/null ]; then
-		func_start_time="${script_start_time}"
-	else # If no integer input or 'script_start_time' undefined
-		valid_display_time='no'
+	if ! [ -z "${input_time}" ] && [ "${input_time}" -eq "${input_time}" 2>/dev/null ]; then
+		func_start_time="${input_time}"
+	elif ! [ -z "${start_time}" ] && [ "${start_time}" -eq "${start_time}" 2>/dev/null ]; then
+		func_start_time="${start_time}"
+	else # If no integer input or 'start_time' undefined
+		valid_time='no'
 	fi
 	
-	if [ "${valid_display_time}" == 'yes' ]; then
-		script_process_time=$((${func_end_time} - ${func_start_time}))
-		days=$((${script_process_time} / 86400))
-		hours=$((${script_process_time} % 86400 / 3600))
-		mins=$((${script_process_time} % 3600 / 60))
-		secs=$((${script_process_time} % 60))
+	if [ "${valid_time}" == 'yes' ]; then
+		process_time=$((${func_end_time} - ${func_start_time}))
+		days=$((${process_time} / 86400))
+		hours=$((${process_time} % 86400 / 3600))
+		mins=$((${process_time} % 3600 / 60))
+		secs=$((${process_time} % 60))
 	
 		if [ "${days}" -gt '0' ]; then 
 			echo "PROCESS TIME: ${days} day(s) ${hours} hour(s) ${mins} minute(s) ${secs} second(s)"
@@ -743,32 +738,32 @@ script_time_func () { # Script process time calculation
 		fi
 	else # Unknown start time
 		echo "UNKNOWN PROCESS TIME"
-	fi # if [ "${valid_display_time}" == 'yes' ]
-} # script_time_func
+	fi # if [ "${valid_time}" == 'yes' ]
+} # time_func
 
 #---------------------------------- CODE -----------------------------------#
 script_path=$(mac_readlink "${script_path}") # similar to 'readlink -f' in linux
 
 # Crash if essential arrays are empty
-if [ "${#feat_extensions[@]}" -eq '0' ] || [ "${#mask_extensions[@]}" -eq '0' ] || \
-   [ "${#nifti_stats[@]}" -eq '0' ] || [ "${#stat_extensions[@]}" -eq '0' ]; then
+if [ "${#feat_exts[@]}" -eq '0' ] || [ "${#mask_exts[@]}" -eq '0' ] || \
+   [ "${#nifti_stats[@]}" -eq '0' ] || [ "${#stat_exts[@]}" -eq '0' ]; then
 	echo "${red}ARRAYS MUST HAVE AT LEAST 1 INPUT${whi}"
-	echo "${ora}feat_extensions:${gre}${#feat_extensions[@]}${whi}"
-	echo "${ora}mask_extensions:${gre}${#mask_extensions[@]}${whi}"
+	echo "${ora}feat_exts:${gre}${#feat_exts[@]}${whi}"
+	echo "${ora}mask_exts:${gre}${#mask_exts[@]}${whi}"
 	echo "${ora}nifti_stats    :${gre}${#nifti_stats[@]}${whi}"
-	echo "${ora}stat_extensions:${gre}${#stat_extensions[@]}${whi}"
+	echo "${ora}stat_exts:${gre}${#stat_exts[@]}${whi}"
 	exit_message 1 -nm -nt
 else # Sort unique values
-	feat_extensions=($(printf "%s${IFS}" ${feat_extensions[@]} |sort -u))
-	mask_extensions=($(printf "%s${IFS}" ${mask_extensions[@]} |sort -u))
+	feat_exts=($(printf "%s${IFS}" ${feat_exts[@]} |sort -u))
+	mask_exts=($(printf "%s${IFS}" ${mask_exts[@]} |sort -u))
 	nifti_stats=($(printf "%s${IFS}" ${nifti_stats[@]} |sort -u))
-	stat_extensions=($(printf "%s${IFS}" ${stat_extensions[@]} |sort -u))
+	stat_exts=($(printf "%s${IFS}" ${stat_exts[@]} |sort -u))
 fi
 
-check_pos_then_neg=($(printf "%s${IFS}" ${pos_then_neg[@]} |sort -u))
-if [ "${#check_pos_then_neg[@]}" -ne '2' ]; then
-	echo "${red}ARRAY MUST HAVE 2 UNIQUE VALUES: ${ora}pos_then_neg:${whi}"
-	display_values ${check_pos_then_neg[@]}
+check_pos_neg=($(printf "%s${IFS}" ${pos_neg[@]} |sort -u))
+if [ "${#check_pos_neg[@]}" -ne '2' ]; then
+	echo "${red}ARRAY MUST HAVE 2 UNIQUE VALUES: ${ora}pos_neg:${whi}"
+	display_values ${check_pos_neg[@]}
 	exit_message 2 -nm -nt
 fi
 
@@ -782,11 +777,11 @@ fi
 
 color_formats # Activates or inhibits colorful output
 
-# Display help message or open file
+# Display help message or open script
 if [ "${activate_help}" == 'yes' 2>/dev/null ]; then # '-h' or '--help'
-	script_usage
+	usage # Display help message
 elif [ "${open_script}" == 'yes' 2>/dev/null ]; then # '-o' or '--open'
-	open_text_editor "${script_path}" ${text_editors[@]}
+	open_text_editor "${script_path}" # Open script
 	exit_message 0 -nm -nt
 elif [ -z "${FSLDIR}" ]; then # Check $FSLDIR
 	echo "${red}UNDEFINED VARIABLE: ${ora}\$FSLDIR ${pur}(${ora}source '${gre}fsl.sh${ora}' script${pur})${whi}"
@@ -800,37 +795,33 @@ echo "${ora}RUNNING: ${gre}${script_path}${whi}"
 
 # Check FEAT directories
 if [ "${#feat_dirs[@]}" -eq '0' ] && [ "${#stat_inputs[@]}" -eq '0' ]; then
-	for i in ${!feat_extensions[@]}; do # Get all feat directories in working directory
-		feat_ext=$(echo "${feat_extensions[${i}]}" |sed 's@\.@\\.@g')
+	for i in ${!feat_exts[@]}; do # Get all feat directories in working directory
+		feat_ext=$(echo "${feat_exts[${i}]}" |sed 's@\.@\\.@g')
 		feat_dirs+=($(find "$(pwd)" -maxdepth 1 -name "*${feat_ext}" |grep -v "^$(pwd)$")) # Find in linked folders too
 	done
 fi
 
 if [ "${#feat_dirs[@]}" -eq '0' ] && [ "${#stat_inputs[@]}" -eq '0' ]; then # Exit if no valid FEAT directories found
 	echo "${red}NO FEAT FOLDERS FOUND WITH THE FOLLOWING EXTENSIONS:${whi}"
-	display_values ${feat_extensions[@]}
+	display_values ${feat_exts[@]}
 	exit_message 4 -nt
 fi
 
 if [ "${#output_folder[@]}" -eq '0' ]; then
 	if [ "${#stat_inputs[@]}" -gt '0' ]; then
-		final_output="$(pwd)"
+		final_output=$(pwd)
 	fi
 elif [ "${#output_folder[@]}" -eq '1' ]; then
 	final_output="${output_folder[0]}"
 else # Multiple output folders
-	echo "${red}CAN ONLY INPUT 1 OUTPUT FOLDER${whi}"
+	echo "${red}ONLY SPECIFY 1 OUTPUT FOLDER${whi}"
 	display_values "${output_folder[@]}"
 	exit_message 5 -nt
 fi
 	
 # Check cope.feat directories
 if [ "${#c_vals[@]}" -eq '0' ]; then # Which cope.feat directories to use
-	if [ "${#default_cope_files[@]}" -eq '0' ]; then
-		c_vals=('^') # Used with 'grep -E' (gets all cope values)
-	else
-		c_vals=($(printf "${cope_dir_name}%s${cope_dir_ext}${IFS}" ${default_cope_files[@]} |sort -u)) # Sort unique cope.feat directories
-	fi
+	c_vals=('^') # Used with 'grep -E' (gets all cope values)
 else
 	c_vals=($(printf "${cope_dir_name}%s${cope_dir_ext}${IFS}" ${c_vals[@]} |sort -u)) # Sort unique cope.feat directories
 fi # if [ "${#c_vals[@]}" -eq '0' ]
@@ -954,8 +945,8 @@ if [ "${remove_clusters}" == 'yes' 2>/dev/null ]; then # Remove files
 			m_filt=() # Reset array
 			for i in ${!m_vals[@]}; do
 				m_val="${m_vals[${i}]}"
-				for j in ${!mask_extensions[@]}; do
-					mask_ext=$(echo "${mask_extensions[${j}]}" |sed 's@\.@\\.@g')
+				for j in ${!mask_exts[@]}; do
+					mask_ext=$(echo "${mask_exts[${j}]}" |sed 's@\.@\\.@g')
 					m_filt+=("_"$(basename "${m_val%${mask_ext}}_")) # mask name only
 				done
 			done # for i in ${!m_vals[@]}
@@ -1075,7 +1066,7 @@ if [ "${remove_clusters}" == 'yes' 2>/dev/null ]; then # Remove files
 		elif [ "${user_remove}" == 'v' 2>/dev/null ]; then
 			display_values ${preserved_files[@]}
 		else
-			re_enter_input_message "${user_remove}"
+			invalid_msg "${user_remove}"
 		fi # if [ "${user_remove}" == 'l' 2>/dev/null ] || [ "${user_remove}" == 'ls' 2>/dev/null ]
 	done # until [ "${proceed}" == 'yes' 2>/dev/null ]
 else # Check stats directories
@@ -1093,13 +1084,11 @@ else # Check stats directories
 		# Create 'grep -E' input and find stat files
 		for i in ${!nifti_stats[@]}; do # Loop through stat types
 			nifti_stat="${nifti_stats[${i}]}"
-			if [ "${#s_vals[@]}" -eq '0' ] && [ "${#default_stat_files[@]}" -eq '0' ]; then
+			if [ "${#s_vals[@]}" -eq '0' ]; then
 				stat_filter='^' # Get all stat files
-			elif [ "${#s_vals[@]}" -eq '0' ]; then # Get default values
-				stat_filter=$(printf "${nifti_stat}%s${feat_stats_ext}\$${IFS}" ${default_stat_files[@]} |sort -u |sed 's@\.@\\.@g' |tr "${IFS}" '|' |sed 's/|$//g')
 			else # Get input values
 				stat_filter=$(printf "${nifti_stat}%s${feat_stats_ext}\$${IFS}" ${s_vals[@]} |sort -u |sed 's@\.@\\.@g' |tr "${IFS}" '|' |sed 's/|$//g')
-			fi # if [ "${#s_vals[@]}" -eq '0' ] && [ "${#default_stat_files[@]}" -eq '0' ]
+			fi # if [ "${#s_vals[@]}" -eq '0' ]
 
 			for j in ${!stat_dirs[@]}; do
 				stat_dir="${stat_dirs[${j}]}"
@@ -1166,7 +1155,7 @@ else # Check stats directories
 			elif [ "${stat_status}" == 'q' 2>/dev/null ] || [ "${stat_status}" == 'x' 2>/dev/null ]; then
 				exit_message 0 -nt
 			else
-				re_enter_input_message "${stat_status}"
+				invalid_msg "${stat_status}"
 			fi
 		fi
 	done # until [ "${proceed}" == 'yes' ]
