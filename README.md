@@ -3,7 +3,7 @@ mri
 
 Magnetic resonance imaging (MRI) data analyses: functional (fMRI) and structural MRI
 
-**rename_dcm_files.sh**: (**linux** and **mac**)  
+[**rename_dcm_files.sh**](https://github.com/ealayher/mri/blob/master/rename_dcm_files.sh): (**linux** and **mac**)  
 Rename DICOM files into organized data structure.  
 To view all options and script details run **rename_dcm_files.sh** with (**-h**) option.
 
