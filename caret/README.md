@@ -3,7 +3,7 @@
 
 Surface visualization of fMRI data using Computerized Anatomical Reconstruction and Editing Toolkit version 5 ([**Caret5**](http://brainvis.wustl.edu/wiki/index.php/Caret:Download))
 
-**create_caret_images.sh**: (**linux** and **mac**)  
+[**create_caret_images.sh**](https://github.com/ealayher/mri/blob/master/caret/create_caret_images.sh): (**linux** and **mac**)  
 Easily create several images of fMRI data mapped onto **Caret5** brain surfaces from the command line (avoid GUI).  
 Add labels, crop, and create composite images with several customizable options.  
 To view all options and script details run **create_caret_images.sh** with (**-h**) option.
