@@ -6,6 +6,7 @@
 # Revised: 02/16/2017 By: Evan Layher (2.2): Alert user of progress + minor updates
 # Revised: 06/28/2017 By: Evan Layher (2.3): Update download instructions
 # Revised: 01/19/2018 By: Evan Layher (2.4): Specify all parameters from commandline + minor updates
+# Revised: 01/25/2018 By: Evan Layher (2.5): Ignore 'EchoNumbers' header if missing
 #--------------------------------------------------------------------------------------#
 # Rename and organize raw dicom files
 
@@ -167,7 +168,7 @@ ${red}END OF HELP: ${gre}${script_path}${whi}"
 #----------------------- GENERAL SCRIPT VARIABLES --------------------------#
 start_time=$(date +%s) # Time in seconds
 script_path="${BASH_SOURCE[0]}" # Script path (becomes absolute path later)
-version='2.4' # Script version number
+version='2.5' # Script version number
 
 	###--- 'yes' or 'no' options (inputs do the opposite of default) ---###
 activate_colors='yes' # 'yes': Display messages in color [INPUT: '-nc']
@@ -456,15 +457,29 @@ rename_dicom () { # Create dicom file structure and rename files
 	# Get requested dicom header information (gets all header information after first '[' and removes leading space)
 	dcm_fields=($("${cmd_dcmdump}" "${in_dcm}" |grep -E -m "${#dcm_hdrs[@]}" $(printf " %s$|" ${dcm_hdrs[@]} |sed 's/|$//g') |awk -F '[' '{$1 = ""; print $0}' |sed 's/^ //g'))
 	vital_command "${LINENO}"
+
+	# "${echo_num}" header not always present and is irrelevant if missing (do not throw error if missing)
+	if [ "${#dcm_fields[@]}" -eq $((${#dcm_hdrs[@]} - 1)) ]; then
+		chk_echos_field=($(printf "%s${IFS}" ${dcm_fields[@]} |grep " ${echo_num}$"))
+		chk_echos_hdr=($(printf "%s${IFS}" ${dcm_hdrs[@]} |grep "^${echo_num}$"))
+
+		if [ "${#chk_echos_field[@]}" -eq '0' ] && [ "${#chk_echos_hdr[@]}" -gt '0' ]; then
+			dcm_hdrs_input=($(printf "%s${IFS}" ${dcm_hdrs[@]} |grep -v "^${echo_num}$")) # Exclude "${echo_num}"
+		fi
+	fi # if [ "${#dcm_fields[@]}" -eq $((${#dcm_hdrs[@]} - 1)) ]
 	
-	if [ "${#dcm_fields[@]}" -ne "${#dcm_hdrs[@]}" ]; then # Must find all dicom fields of interest
-		echo "${red}ERROR: ${ora}FOUND ${gre}${#dcm_fields[@]}${ora}/${gre}${#dcm_hdrs[@]} ${ora}DICOM HEADERS${whi}"
+	if [ "${#dcm_hdrs_input[@]}" -eq '0' ]; then
+		dcm_hdrs_input=($(printf "%s${IFS}" ${dcm_hdrs[@]})) # Temporary headers array
+	fi
+
+	if [ "${#dcm_fields[@]}" -ne "${#dcm_hdrs_input[@]}" ]; then # Must find all dicom fields of interest
+		echo "${red}ERROR: ${ora}ONLY FOUND ${gre}${#dcm_fields[@]}${ora}/${gre}${#dcm_hdrs_input[@]} ${ora}DICOM HEADERS${whi}: ${gre}${in_dcm}${whi}"
 		break # Error with dicom field(s)
 	else # Prepare new dicom filename
 		scan_name=() # Reset array (new dicom file output name)
 		sub_name=()  # Reset array (subfolder output name)
-		for j_dcm in ${!dcm_hdrs[@]}; do
-			field_chk="${dcm_hdrs[${j_dcm}]}"
+		for j_dcm in ${!dcm_hdrs_input[@]}; do
+			field_chk="${dcm_hdrs_input[${j_dcm}]}"
 			file_chk=($(printf "%s${IFS}" ${file_dcm_hdrs[@]} |grep "^${field_chk}$")) # Exclude from subfolder name
 			field_value=$(printf "%s${IFS}" "${dcm_fields[@]}" |grep " ${field_chk}$" |awk -F ']' '{$NF=""; print $0}' |sed 's/ //g') # print all but last field (remove spaces)
 		
@@ -487,7 +502,7 @@ rename_dicom () { # Create dicom file structure and rename files
 					sub_name+=("${field_value}")
 				fi
 			fi # if [ "${field_chk}" == "${series_num}" 2>/dev/null ]
-		done # for j_dcm in ${!dcm_hdrs[@]}
+		done # for j_dcm in ${!dcm_hdrs_input[@]}
 	fi # if [ "${#dcm_fields[@]}" -ne "${#dcm_hdrs[@]}" ]
 	
 	if [ "${#outdir_names[@]}" -gt '0' ]; then
